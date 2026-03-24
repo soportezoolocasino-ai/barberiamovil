@@ -7,10 +7,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Health check
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', message: 'CutGo API is alive' }));
 
-// Routes
 app.use('/api/auth',     require('./routes/auth'));
 app.use('/api/barbers',  require('./routes/barbers'));
 app.use('/api/bookings', require('./routes/bookings'));
@@ -18,11 +16,13 @@ app.use('/api/services', require('./routes/services'));
 app.use('/api/reviews',  require('./routes/reviews'));
 app.use('/api/admin',    require('./routes/admin'));
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
 initDB().then(() => {
-  app.listen(PORT, () => console.log(`🚀 CutGo API running on port ${PORT}`));
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 CutGo API funcionando en puerto ${PORT}`);
+  });
 }).catch(err => {
-  console.error('DB init error:', err);
+  console.error('❌ Error DB:', err);
   process.exit(1);
 });
