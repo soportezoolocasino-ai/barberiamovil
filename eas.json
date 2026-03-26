@@ -1,0 +1,54 @@
+{
+  "cli": {
+    "version": ">= 7.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      },
+      "ios": {
+        "simulator": false,
+        "credentialsSource": "remote",
+        "distribution": "internal"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://barberiamovil-production.up.railway.app/api",
+        "EXPO_PUBLIC_STRIPE_KEY": "pk_live_TU_CLAVE_PUBLICA_STRIPE",
+        "EXPO_PUBLIC_GOOGLE_MAPS_KEY": "TU_CLAVE_GOOGLE_MAPS"
+      }
+    },
+    "production": {
+      "channel": "production",
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "ios": {
+        "credentialsSource": "remote"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://barberiamovil-production.up.railway.app/api",
+        "EXPO_PUBLIC_STRIPE_KEY": "pk_live_TU_CLAVE_PUBLICA_STRIPE",
+        "EXPO_PUBLIC_GOOGLE_MAPS_KEY": "TU_CLAVE_GOOGLE_MAPS"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "tu@email.com",
+        "ascAppId": "TU_APP_ID",
+        "appleTeamId": "TU_TEAM_ID"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-key.json",
+        "track": "internal"
+      }
+    }
+  }
+}

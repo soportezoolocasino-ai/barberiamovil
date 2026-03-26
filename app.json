@@ -1,0 +1,94 @@
+{
+  "expo": {
+    "name": "CutGo",
+    "slug": "cutgo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0d0d0d"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/41e1f957-d996-445a-b2f6-69d4e075212e"
+    },
+    "runtimeVersion": "1.0.0",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.cutgo.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "CutGo necesita tu ubicación para encontrar barberos cercanos y que el barbero pueda llegar a donde estás.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "CutGo usa tu ubicación para mostrarte barberos disponibles cerca.",
+        "NSCameraUsageDescription": "CutGo usa la cámara para que puedas actualizar tu foto de perfil.",
+        "NSPhotoLibraryUsageDescription": "CutGo necesita acceso a tus fotos para que puedas elegir una imagen de perfil.",
+        "NSPhotoLibraryAddUsageDescription": "CutGo guarda las fotos de tu portfolio.",
+        "UIBackgroundModes": [
+          "location",
+          "fetch",
+          "remote-notification"
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0d0d0d"
+      },
+      "package": "com.cutgo.app",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "CutGo necesita tu ubicación para encontrar barberos cercanos."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#c9a84c",
+          "sounds": [
+            "./assets/notification.wav"
+          ]
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "CutGo accede a tus fotos para actualizar tu perfil."
+        }
+      ],
+      "expo-secure-store",
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.cutgo",
+          "enableGooglePay": true
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "41e1f957-d996-445a-b2f6-69d4e075212e"
+      }
+    },
+    "owner": "guillen44"
+  }
+}
