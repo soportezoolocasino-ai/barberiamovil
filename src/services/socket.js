@@ -1,7 +1,7 @@
 import { io } from 'socket.io-client';
 import * as SecureStore from 'expo-secure-store';
 
-const SOCKET_URL = 'http://localhost:3000';
+const SOCKET_URL = 'https://considerate-vibrancy-production-683a.up.railway.app';
 let socket = null;
 
 export const connectSocket = async () => {
@@ -22,11 +22,9 @@ export const connectSocket = async () => {
 export const disconnectSocket = () => { socket?.disconnect(); socket = null; };
 export const getSocket = () => socket;
 
-// Helpers de sala
 export const joinUserRoom   = () => socket?.emit('join:user');
 export const joinBarberRoom = () => socket?.emit('join:barber');
 export const joinAdminRoom  = () => socket?.emit('join:admin');
 
-// Barbero emite su GPS
 export const emitBarberLocation = (lat, lng) =>
   socket?.emit('barber:location', { lat, lng });
