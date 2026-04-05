@@ -23,7 +23,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location    from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { barbersAPI, bookingsAPI } from '../../services/api';
+import { barbersAPI, bookingsAPI, servicesAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { colors, fonts, spacing, radius } from '../../constants/theme';
 
@@ -113,7 +113,7 @@ export const ClientHomeScreen = ({ navigation }) => {
   // Servicios del barbero seleccionado (los pone él desde su panel)
   const { data: servicesData } = useQuery({
     queryKey: ['services', selectedBarber?.id],
-    queryFn:  () => barbersAPI.services(selectedBarber.user_id || selectedBarber.id),
+    queryFn:  () => servicesAPI.services(selectedBarber.user_id || selectedBarber.id),
     enabled:  !!selectedBarber,
   });
 
@@ -828,3 +828,7 @@ const styles = StyleSheet.create({
   profileItem:       { paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   profileItemText:   { fontSize: 15, color: colors.black },
 });
+
+
+
+
