@@ -70,41 +70,54 @@ export const BarberHomeScreen = ({ navigation }) => {
   const [blockMode, setBlockMode]         = useState(false);
   const [savingShop, setSavingShop]       = useState(false);
   const [savingSchedule, setSavingSchedule] = useState(false);
-
-  const [shopData, setShopData] = useState({
-    name: '', address: '', phone: '', bio: '', services: [],
-  });
-  const [editingSvc, setEditingSvc] = useState(null);
+  const [shopData, setShopData]           = useState({ name: '', address: '', phone: '', bio: '', services: [] });
+  const [editingSvc, setEditingSvc]       = useState(null);
+  const [shopLoaded, setShopLoaded]       = useState(false);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // ── Cargar datos del perfil al abrir ──────────────────────
+  // ── Cargar perfil ─────────────────────────────────────────
   const { data: profileData } = useQuery({
-    queryKey: ['barberProfile', user?.id],
-    queryFn:  () => barbersAPI.getProfile(user?.id),
+    queryKey: ['barberProfile'],
+    queryFn:  () => barbersAPI.getProfile(),
     enabled:  !!user?.id,
-    onSuccess: (d) => {
-      if (d?.profile) {
-        setShopData({
-          name:     d.profile.shop_name || d.profile.name || '',
-          address:  d.profile.address  || '',
-          phone:    d.profile.phone    || '',
-          bio:      d.profile.bio      || '',
-          services: d.profile.services || [],
-        });
-      }
-    },
+    staleTime: 0,
   });
 
-  // ── Cargar horario guardado ───────────────────────────────
+  // Cuando llegan los datos del perfil, poblar shopData
+  useEffect(() => {
+    if (profileData?.profile && !shopLoaded) {
+      const p = profileData.profile;
+      setShopData({
+        name:     p.shop_name || p.name || '',
+        address:  p.address   || '',
+        phone:    p.phone     || '',
+        bio:      p.bio       || '',
+        services: p.services  || [],
+      });
+      setShopLoaded(true);
+    }
+  }, [profileData]);
+
+  // Recargar datos cada vez que se abre el panel
+  useEffect(() => {
+    if (showShopPanel) {
+      setShopLoaded(false);
+      qClient.invalidateQueries(['barberProfile']);
+    }
+  }, [showShopPanel]);
+
+  // ── Cargar horario ────────────────────────────────────────
   const { data: scheduleData } = useQuery({
-    queryKey: ['barberSchedule', user?.id],
+    queryKey: ['barberSchedule'],
     queryFn:  () => barbersAPI.getSchedule(),
     enabled:  !!user?.id,
-    onSuccess: (d) => {
-      if (d?.schedule) setSchedule(d.schedule);
-    },
+    staleTime: 0,
   });
+
+  useEffect(() => {
+    if (scheduleData?.schedule) setSchedule(scheduleData.schedule);
+  }, [scheduleData]);
 
   const { data: earningsData } = useQuery({
     queryKey: ['earnings', 'today'],
@@ -214,7 +227,6 @@ export const BarberHomeScreen = ({ navigation }) => {
     ]);
   };
 
-  // ── GUARDAR HORARIO EN BACKEND ────────────────────────────
   const saveSchedule = async () => {
     setSavingSchedule(true);
     try {
@@ -229,28 +241,23 @@ export const BarberHomeScreen = ({ navigation }) => {
     }
   };
 
-  // ── GUARDAR PERFIL + SERVICIOS EN BACKEND ─────────────────
   const saveShopData = async () => {
     setSavingShop(true);
     try {
-      // 1. Guardar perfil del local
       await barbersAPI.updateProfile({
         bio:     shopData.bio,
         address: shopData.address,
         phone:   shopData.phone,
       });
 
-      // 2. Sincronizar servicios — borrar los viejos y crear los nuevos
       const currentServices = profileData?.profile?.services || [];
 
-      // Borrar servicios que ya no están
       for (const old of currentServices) {
         if (!shopData.services.find((s) => String(s.id) === String(old.id))) {
           try { await barbersAPI.deleteService(old.id); } catch {}
         }
       }
 
-      // Crear o actualizar servicios
       for (const svc of shopData.services) {
         const isNew = !currentServices.find((s) => String(s.id) === String(svc.id));
         if (isNew) {
@@ -258,19 +265,20 @@ export const BarberHomeScreen = ({ navigation }) => {
             name:         svc.name,
             price:        svc.price,
             duration_min: svc.duration || svc.duration_min || 30,
-            icon:         svc.icon || '✂️',
+            icon:         svc.icon || 'C',
           });
         } else {
           await barbersAPI.updateService(svc.id, {
             name:         svc.name,
             price:        svc.price,
             duration_min: svc.duration || svc.duration_min || 30,
-            icon:         svc.icon || '✂️',
+            icon:         svc.icon || 'C',
           });
         }
       }
 
-      qClient.invalidateQueries(['barberProfile', user?.id]);
+      setShopLoaded(false);
+      qClient.invalidateQueries(['barberProfile']);
       setShowShopPanel(false);
       setEditingSvc(null);
       Alert.alert('✅', 'Cambios guardados correctamente');
@@ -281,7 +289,6 @@ export const BarberHomeScreen = ({ navigation }) => {
     }
   };
 
-  // ── Servicios locales ─────────────────────────────────────
   const saveSvc = () => {
     if (!editingSvc) return;
     setShopData((prev) => ({
@@ -294,7 +301,7 @@ export const BarberHomeScreen = ({ navigation }) => {
   };
 
   const addSvc = () => {
-    const n = { id: `new_${Date.now()}`, name: '', price: 0, duration: 30, icon: '✂️' };
+    const n = { id: `new_${Date.now()}`, name: '', price: 0, duration: 30, icon: 'C' };
     setEditingSvc(n);
   };
 
@@ -312,7 +319,6 @@ export const BarberHomeScreen = ({ navigation }) => {
     <SafeAreaView style={styles.safe}>
       <ScrollView showsVerticalScrollIndicator={false}>
 
-        {/* Header */}
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>{firstName} ✂️</Text>
@@ -328,7 +334,6 @@ export const BarberHomeScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Toggle online */}
         <View style={styles.onlineCard}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
             <Animated.View style={[styles.onlineDot, !isOnline && styles.onlineDotOff, { transform: [{ scale: pulseAnim }] }]} />
@@ -340,7 +345,6 @@ export const BarberHomeScreen = ({ navigation }) => {
           <Switch value={isOnline} onValueChange={toggleOnline} trackColor={{ false: colors.mid, true: '#27ae60' }} thumbColor={colors.white} />
         </View>
 
-        {/* Ganancias */}
         <View style={styles.earningsCard}>
           <Text style={styles.earningsLabel}>GANANCIAS HOY</Text>
           <Text style={styles.earningsAmount}>€{net}</Text>
@@ -355,14 +359,12 @@ export const BarberHomeScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Nueva reserva */}
         {pendingJob && (
           <View style={styles.pendingCard}>
             <Badge label="NUEVA RESERVA" color="gold" />
             <Text style={styles.jobName}>{pendingJob.client_name}</Text>
             <Text style={styles.jobDetail}>{pendingJob.service_names} · <Text style={{ color: colors.gold }}>€{(pendingJob.total * 0.70).toFixed(2)} tu parte</Text></Text>
             {pendingJob.time && <Text style={styles.jobTime}>🕐 {pendingJob.time}</Text>}
-            {pendingJob.payment_method === 'deposit' && <Text style={styles.depositBadge}>🔒 Señal pagada</Text>}
             <View style={styles.jobBtns}>
               <Button title="✓ Aceptar"  onPress={acceptJob} style={{ flex: 1 }} />
               <Button title="✕ Rechazar" variant="ghost" onPress={() => setPendingJob(null)} style={{ flex: 1 }} />
@@ -370,7 +372,6 @@ export const BarberHomeScreen = ({ navigation }) => {
           </View>
         )}
 
-        {/* Reserva activa */}
         {activeJob && (
           <View style={styles.activeCard}>
             <Badge label="EN SERVICIO" color="green" />
@@ -388,7 +389,6 @@ export const BarberHomeScreen = ({ navigation }) => {
           </View>
         )}
 
-        {/* Próximas citas */}
         {upcoming.length > 0 && (
           <>
             <Text style={styles.sectionTitle}>📅 Próximas citas</Text>
@@ -401,16 +401,12 @@ export const BarberHomeScreen = ({ navigation }) => {
                   <Text style={styles.upcomingName}>{b.client_name}</Text>
                   <Text style={styles.upcomingMeta}>{b.service_names}</Text>
                 </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.upcomingPrice}>€{(b.total * 0.70).toFixed(2)}</Text>
-                  {b.payment_method === 'deposit' && <Text style={styles.depositTag}>🔒 Señal</Text>}
-                </View>
+                <Text style={styles.upcomingPrice}>€{(b.total * 0.70).toFixed(2)}</Text>
               </View>
             ))}
           </>
         )}
 
-        {/* Accesos rápidos */}
         <View style={styles.quickRow}>
           {[
             { icon: '🗓️', label: 'Mi horario',  onPress: () => setShowSchedule(true) },
@@ -424,7 +420,6 @@ export const BarberHomeScreen = ({ navigation }) => {
           ))}
         </View>
 
-        {/* Historial */}
         <Text style={styles.sectionTitle}>Cortes de hoy</Text>
         {history.length === 0 ? (
           <Text style={styles.emptyText}>Aún no hay cortes completados hoy</Text>
@@ -444,12 +439,11 @@ export const BarberHomeScreen = ({ navigation }) => {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* FAB WhatsApp */}
       <TouchableOpacity style={styles.fab} onPress={() => Linking.openURL('https://wa.me/34600000000')}>
         <Text style={styles.fabText}>💬</Text>
       </TouchableOpacity>
 
-      {/* MODAL — PERFIL */}
+      {/* MODAL PERFIL */}
       <Modal visible={showProfile} transparent animationType="slide">
         <TouchableWithoutFeedback onPress={() => setShowProfile(false)}>
           <View style={styles.overlay} />
@@ -475,7 +469,7 @@ export const BarberHomeScreen = ({ navigation }) => {
         </View>
       </Modal>
 
-      {/* MODAL — HORARIO */}
+      {/* MODAL HORARIO */}
       <Modal visible={showSchedule} transparent animationType="slide">
         <TouchableWithoutFeedback onPress={() => { setShowSchedule(false); setBlockMode(false); }}>
           <View style={styles.overlay} />
@@ -557,7 +551,7 @@ export const BarberHomeScreen = ({ navigation }) => {
         </View>
       </Modal>
 
-      {/* MODAL — PANEL DEL LOCAL */}
+      {/* MODAL PANEL DEL LOCAL */}
       <Modal visible={showShopPanel} transparent animationType="slide">
         <TouchableWithoutFeedback onPress={() => { if (!savingShop) { setShowShopPanel(false); setEditingSvc(null); } }}>
           <View style={styles.overlay} />
@@ -565,7 +559,6 @@ export const BarberHomeScreen = ({ navigation }) => {
         <View style={[styles.sheet, { maxHeight: '92%' }]}>
           <Text style={styles.sheetTitle}>💈 Panel del local</Text>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-
             <Text style={styles.panelLabel}>Información</Text>
             {[
               { label: 'Nombre del local', val: shopData.name,    key: 'name',    ph: 'Barbería El Fígaro' },
@@ -577,29 +570,22 @@ export const BarberHomeScreen = ({ navigation }) => {
                 <TextInput style={styles.panelInput} value={val} onChangeText={(v) => setShopData((p) => ({ ...p, [key]: v }))} placeholder={ph} placeholderTextColor={colors.gray} />
               </View>
             ))}
-
             <View style={styles.panelField}>
               <Text style={styles.panelFieldLabel}>Descripción del local</Text>
               <TextInput style={[styles.panelInput, { height: 72, textAlignVertical: 'top' }]} value={shopData.bio} onChangeText={(v) => setShopData((p) => ({ ...p, bio: v }))} placeholder="Cuéntales a los clientes sobre tu barbería..." placeholderTextColor={colors.gray} multiline />
             </View>
-
             <TouchableOpacity style={styles.mapsBtn} onPress={() => shopData.address && Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(shopData.address)}`)}>
               <Text style={styles.mapsBtnText}>📍 Ver en Google Maps</Text>
             </TouchableOpacity>
-
-            {/* Servicios y precios */}
             <View style={styles.svcHeader}>
               <Text style={styles.panelLabel}>Servicios y precios</Text>
               <TouchableOpacity onPress={addSvc}><Text style={styles.addSvcText}>+ Añadir</Text></TouchableOpacity>
             </View>
-
             {shopData.services.length === 0 && !editingSvc && (
               <View style={styles.emptySvc}>
                 <Text style={styles.emptySvcText}>Aún no tienes servicios. Pulsa "+ Añadir" para crear el primero.</Text>
               </View>
             )}
-
-            {/* Formulario nuevo servicio */}
             {editingSvc && (
               <View style={styles.svcEditCard}>
                 <TextInput style={styles.panelInput} value={editingSvc.name} onChangeText={(v) => setEditingSvc((s) => ({ ...s, name: v }))} placeholder="Nombre del servicio (ej: Corte)" placeholderTextColor={colors.gray} />
@@ -614,28 +600,25 @@ export const BarberHomeScreen = ({ navigation }) => {
                   </View>
                 </View>
                 <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
-                  <Button title="✓ Añadir" onPress={saveSvc} style={{ flex: 1 }} />
+                  <Button title="Añadir" onPress={saveSvc} style={{ flex: 1 }} />
                   <Button title="Cancelar" variant="ghost" onPress={() => setEditingSvc(null)} style={{ flex: 1 }} />
                 </View>
               </View>
             )}
-
             {shopData.services.map((svc) => (
               <View key={svc.id} style={styles.svcRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.svcName}>{svc.icon || '✂️'} {svc.name}</Text>
+                  <Text style={styles.svcName}>{svc.icon || 'C'} {svc.name}</Text>
                   <Text style={styles.svcDur}>{svc.duration || svc.duration_min || 30} min</Text>
                 </View>
                 <Text style={styles.svcPrice}>€{svc.price}</Text>
-                <TouchableOpacity style={styles.svcAction} onPress={() => setEditingSvc({ ...svc })}><Text>✏️</Text></TouchableOpacity>
-                <TouchableOpacity style={styles.svcAction} onPress={() => deleteSvc(svc.id)}><Text>🗑️</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.svcAction} onPress={() => setEditingSvc({ ...svc })}><Text style={{color:colors.gold}}>✏</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.svcAction} onPress={() => deleteSvc(svc.id)}><Text style={{color:'#e74c3c'}}>✕</Text></TouchableOpacity>
               </View>
             ))}
-
           </ScrollView>
-
           <TouchableOpacity style={styles.saveBtn} onPress={saveShopData} disabled={savingShop}>
-            {savingShop ? <ActivityIndicator color={colors.black} /> : <Text style={styles.saveBtnText}>💾 Guardar cambios</Text>}
+            {savingShop ? <ActivityIndicator color={colors.black} /> : <Text style={styles.saveBtnText}>Guardar cambios</Text>}
           </TouchableOpacity>
           <TouchableOpacity onPress={() => { setShowShopPanel(false); setEditingSvc(null); }} style={styles.cancelLink}>
             <Text style={{ color: colors.gray }}>Cancelar</Text>
@@ -672,8 +655,6 @@ const styles = StyleSheet.create({
   jobName:   { fontSize: 16, ...fonts.subhead, color: colors.white, marginTop: 4 },
   jobDetail: { fontSize: 13, color: colors.gray, marginTop: 2 },
   jobTime:   { fontSize: 12, color: colors.gold, marginTop: 4 },
-  depositBadge: { fontSize: 11, color: '#27ae60', marginTop: 4 },
-  depositTag:   { fontSize: 10, color: '#27ae60' },
   jobBtns:   { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   sectionTitle: { fontSize: 12, color: colors.gray, textTransform: 'uppercase', letterSpacing: 0.8, paddingHorizontal: spacing.lg, marginBottom: spacing.sm, marginTop: spacing.md, ...fonts.subhead },
   emptyText:    { color: colors.gray, textAlign: 'center', paddingVertical: spacing.lg, fontSize: 13 },
