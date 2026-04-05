@@ -113,7 +113,7 @@ export const ClientHomeScreen = ({ navigation }) => {
   // Servicios del barbero seleccionado (los pone él desde su panel)
   const { data: servicesData } = useQuery({
     queryKey: ['services', selectedBarber?.id],
-    queryFn:  () => barbersAPI.services(selectedBarber.id),
+    queryFn:  () => barbersAPI.services(selectedBarber.user_id || selectedBarber.id),
     enabled:  !!selectedBarber,
   });
 
