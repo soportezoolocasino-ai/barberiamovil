@@ -4,13 +4,11 @@ import {
   StyleSheet, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
 import { useAuthStore } from '../../store/authStore';
 import { Button, Input } from '../../components/common';
 import { colors, fonts, spacing, radius } from '../../constants/theme';
 
-// ─────────────────────────────────────────────
-//  HELPERS
-// ─────────────────────────────────────────────
 const parseError = (err) => {
   const msg = err?.message || err?.error || String(err) || '';
   if (msg.includes('fetch') || msg.includes('network') || msg.includes('Network') || msg.includes('connect') || msg.includes('conexión'))
@@ -50,25 +48,21 @@ export const LoginScreen = ({ navigation }) => {
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-
           <View style={styles.header}>
             <Text style={styles.logo}>CutGo</Text>
             <Text style={styles.tagline}>Tu barbería, sin esperas</Text>
           </View>
-
           <View style={styles.form}>
             <Input label="Email"      value={email}    onChangeText={setEmail}    keyboardType="email-address" autoCapitalize="none" autoCorrect={false} placeholder="tu@email.com" />
             <Input label="Contraseña" value={password} onChangeText={setPassword} secureTextEntry placeholder="••••••••" />
             <Button title={loading ? 'Entrando...' : 'Entrar'} onPress={handleLogin} loading={loading} style={{ marginTop: spacing.sm }} />
           </View>
-
           <View style={styles.footer}>
             <Text style={styles.footerText}>¿No tienes cuenta? </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Register')}>
               <Text style={styles.footerLink}>Regístrate gratis</Text>
             </TouchableOpacity>
           </View>
-
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -76,24 +70,18 @@ export const LoginScreen = ({ navigation }) => {
 };
 
 // ─────────────────────────────────────────────
-//  REGISTER — pantalla unificada con selector
-//  de rol. Sin precios hardcodeados.
-//  El dueño configura servicios/precios desde
-//  el Panel del Local una vez dentro de la app.
+//  REGISTER
 // ─────────────────────────────────────────────
 export const RegisterScreen = ({ navigation }) => {
-  const [role, setRole]     = useState('client'); // 'client' | 'owner'
-  const [step, setStep]     = useState(1);
-  const [loading, setLoading] = useState(false);
+  const [role, setRole]         = useState('client');
+  const [step, setStep]         = useState(1);
+  const [loading, setLoading]   = useState(false);
   const register = useAuthStore((s) => s.register);
 
-  // Campos comunes
   const [name, setName]         = useState('');
   const [email, setEmail]       = useState('');
   const [phone, setPhone]       = useState('');
   const [password, setPassword] = useState('');
-
-  // Solo dueño
   const [shopName, setShopName] = useState('');
   const [address, setAddress]   = useState('');
   const [city, setCity]         = useState('');
@@ -107,10 +95,29 @@ export const RegisterScreen = ({ navigation }) => {
   const changeRole = (r) => { setRole(r); resetFields(); };
 
   const goNext = () => {
-    if (!name.trim())     return Alert.alert('Faltan datos', 'Escribe tu nombre completo.');
-    if (!email.trim())    return Alert.alert('Faltan datos', 'Escribe tu email.');
-    if (password.length < 6) return Alert.alert('Contraseña corta', 'La contraseña debe tener al menos 6 caracteres.');
+    if (!name.trim())        return Alert.alert('Faltan datos', 'Escribe tu nombre completo.');
+    if (!email.trim())       return Alert.alert('Faltan datos', 'Escribe tu email.');
+    if (password.length < 6) return Alert.alert('Contraseña corta', 'Mínimo 6 caracteres.');
     setStep(2);
+  };
+
+  // ── Obtener ubicación GPS del barbero ──────────────────────
+  const getBarberLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Ubicación necesaria',
+          'Los clientes necesitan tu ubicación para encontrarte. Por favor activa el GPS.',
+          [{ text: 'Entendido' }]
+        );
+        return null;
+      }
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      return { lat: loc.coords.latitude, lng: loc.coords.longitude };
+    } catch {
+      return null;
+    }
   };
 
   const handleRegister = async () => {
@@ -128,11 +135,20 @@ export const RegisterScreen = ({ navigation }) => {
         password,
         role,
       };
+
       if (role === 'owner') {
         payload.shop_name = shopName.trim();
         payload.address   = address.trim();
         payload.city      = city.trim();
+
+        // 📍 Obtener ubicación GPS automáticamente
+        const loc = await getBarberLocation();
+        if (loc) {
+          payload.lat = loc.lat;
+          payload.lng = loc.lng;
+        }
       }
+
       await register(payload);
     } catch (err) {
       Alert.alert('Error al registrarse', parseError(err));
@@ -151,7 +167,7 @@ export const RegisterScreen = ({ navigation }) => {
             <Text style={styles.tagline}>Crea tu cuenta</Text>
           </View>
 
-          {/* ── Selector de rol ── */}
+          {/* Selector de rol */}
           <View style={styles.roleRow}>
             <TouchableOpacity style={[styles.roleBtn, role === 'client' && styles.roleBtnActive]} onPress={() => changeRole('client')}>
               <Text style={[styles.roleBtnText, role === 'client' && styles.roleBtnTextActive]}>✂ Soy cliente</Text>
@@ -161,7 +177,7 @@ export const RegisterScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
-          {/* Barra de progreso (solo dueño) */}
+          {/* Barra progreso dueño */}
           {role === 'owner' && (
             <View style={styles.progressRow}>
               <View style={[styles.progressStep, styles.progressStepActive]} />
@@ -170,7 +186,6 @@ export const RegisterScreen = ({ navigation }) => {
           )}
 
           <View style={styles.form}>
-
             {/* PASO 1 */}
             {step === 1 && (
               <>
@@ -188,14 +203,14 @@ export const RegisterScreen = ({ navigation }) => {
               </>
             )}
 
-            {/* PASO 2 — solo dueño */}
+            {/* PASO 2 — solo barbero */}
             {step === 2 && role === 'owner' && (
               <>
                 <Text style={styles.stepLabel}>Tu barbería</Text>
 
                 <View style={styles.infoBox}>
                   <Text style={styles.infoBoxText}>
-                    Los servicios, precios y horarios los configuras tú mismo desde el panel una vez dentro. Sin límites.
+                    📍 Al crear tu cuenta pediremos tu ubicación GPS para que los clientes puedan encontrarte.
                   </Text>
                 </View>
 
@@ -203,13 +218,17 @@ export const RegisterScreen = ({ navigation }) => {
                 <Input label="Dirección"         value={address}  onChangeText={setAddress}  placeholder="Calle Mayor 12, Madrid" />
                 <Input label="Ciudad"            value={city}     onChangeText={setCity}      placeholder="Madrid, Barcelona..." />
 
-                <Button title={loading ? 'Creando...' : 'Crear mi barbería gratis'} onPress={handleRegister} loading={loading} style={{ marginTop: spacing.sm }} />
+                <Button
+                  title={loading ? 'Creando...' : '📍 Crear mi barbería (con ubicación)'}
+                  onPress={handleRegister}
+                  loading={loading}
+                  style={{ marginTop: spacing.sm }}
+                />
                 <TouchableOpacity style={{ alignSelf: 'center', marginTop: spacing.md }} onPress={() => setStep(1)}>
                   <Text style={{ color: colors.gray, fontSize: 13 }}>← Volver</Text>
                 </TouchableOpacity>
               </>
             )}
-
           </View>
 
           <View style={styles.footer}>
@@ -225,12 +244,8 @@ export const RegisterScreen = ({ navigation }) => {
   );
 };
 
-// Alias por compatibilidad con navigators que usen 'RegisterBarber'
 export const RegisterBarberScreen = RegisterScreen;
 
-// ─────────────────────────────────────────────
-//  STYLES
-// ─────────────────────────────────────────────
 const styles = StyleSheet.create({
   safe:      { flex: 1, backgroundColor: colors.black },
   container: { flexGrow: 1, paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl },
@@ -239,11 +254,11 @@ const styles = StyleSheet.create({
   logo:    { fontSize: 42, ...fonts.heading, color: colors.gold, letterSpacing: 2 },
   tagline: { fontSize: 14, color: colors.gray, marginTop: 6 },
 
-  roleRow:          { flexDirection: 'row', gap: 8, marginBottom: spacing.md },
-  roleBtn:          { flex: 1, paddingVertical: spacing.md, borderRadius: radius.md, borderWidth: 1.5, borderColor: 'rgba(201,168,76,0.25)', alignItems: 'center' },
-  roleBtnActive:    { backgroundColor: colors.gold, borderColor: colors.gold },
-  roleBtnText:      { fontSize: 14, color: colors.gray, ...fonts.bodyMed },
-  roleBtnTextActive:{ color: colors.black },
+  roleRow:           { flexDirection: 'row', gap: 8, marginBottom: spacing.md },
+  roleBtn:           { flex: 1, paddingVertical: spacing.md, borderRadius: radius.md, borderWidth: 1.5, borderColor: 'rgba(201,168,76,0.25)', alignItems: 'center' },
+  roleBtnActive:     { backgroundColor: colors.gold, borderColor: colors.gold },
+  roleBtnText:       { fontSize: 14, color: colors.gray, ...fonts.bodyMed },
+  roleBtnTextActive: { color: colors.black },
 
   progressRow:        { flexDirection: 'row', gap: 8, marginBottom: spacing.md },
   progressStep:       { flex: 1, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.12)' },
